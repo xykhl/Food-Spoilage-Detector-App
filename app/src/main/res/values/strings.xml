@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Food Spoilage Detector</string>
+    <string name="nav_detect">Detect</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="title_detection">Food Spoilage Detection</string>
+    <string name="btn_take_photo">Take Photo</string>
+    <string name="btn_gallery">Gallery</string>
+    <string name="title_sensor_data">Sensor Data</string>
+    <string name="btn_detect">Detect Spoilage</string>
+    <string name="placeholder_result">Detection result will appear here after models are integrated.</string>
+
+    <string name="label_ethanol">Ethanol (乙醇)</string>
+    <string name="label_ethylene">Ethylene (乙烯)</string>
+    <string name="label_voc">VOC</string>
+    <string name="label_h2s">H2S (硫化氢)</string>
+    <string name="label_ammonia">Ammonia (氨气)</string>
+    <string name="label_ch3sh">CH3SH (甲硫醇)</string>
+    <string name="label_temp">Temp (°C)</string>
+    <string name="label_humidity">Humidity (%)</string>
+
+    <string name="title_settings">Settings</string>
+    <string name="label_language">Language</string>
+    <string name="lang_english">English</string>
+    <string name="lang_chinese">Chinese</string>
+
+    <string name="placeholder_history">History Screen Placeholder</string>
+</resources>

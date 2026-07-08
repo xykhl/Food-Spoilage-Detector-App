@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">食物变质检测器</string>
+    <string name="nav_detect">检测</string>
+    <string name="nav_history">历史</string>
+    <string name="nav_settings">设置</string>
+
+    <string name="title_detection">食物变质检测</string>
+    <string name="btn_take_photo">拍照</string>
+    <string name="btn_gallery">相册</string>
+    <string name="title_sensor_data">传感器数据</string>
+    <string name="btn_detect">开始检测</string>
+    <string name="placeholder_result">集成模型后将在此显示检测结果。</string>
+
+    <string name="label_ethanol">乙醇 (Ethanol)</string>
+    <string name="label_ethylene">乙烯 (Ethylene)</string>
+    <string name="label_voc">VOC</string>
+    <string name="label_h2s">硫化氢 (H2S)</string>
+    <string name="label_ammonia">氨气 (Ammonia)</string>
+    <string name="label_ch3sh">甲硫醇 (CH3SH)</string>
+    <string name="label_temp">温度 (°C)</string>
+    <string name="label_humidity">湿度 (%)</string>
+
+    <string name="title_settings">设置</string>
+    <string name="label_language">语言</string>
+    <string name="lang_english">英文</string>
+    <string name="lang_chinese">中文</string>
+
+    <string name="placeholder_history">历史记录界面占位符</string>
+</resources>
