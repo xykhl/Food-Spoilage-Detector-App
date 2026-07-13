@@ -36,19 +36,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
+import com.example.foodspoilagedetector.bluetooth.BluetoothService
+import com.example.foodspoilagedetector.model.SensorDataParser
 import com.example.foodspoilagedetector.ui.DetectionScreen
+import com.example.foodspoilagedetector.ui.HistoryScreen
 import com.example.foodspoilagedetector.ui.theme.FoodSpoilageDetectorTheme
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val bluetoothService = BluetoothService(this)
         enableEdgeToEdge()
         setContent {
             FoodSpoilageDetectorTheme {
-                FoodSpoilageDetectorApp()
+                FoodSpoilageDetectorApp(bluetoothService)
             }
         }
     }
@@ -56,8 +65,27 @@ class MainActivity : ComponentActivity() {
 
 @PreviewScreenSizes
 @Composable
-fun FoodSpoilageDetectorApp() {
+fun FoodSpoilageDetectorApp(bluetoothService: BluetoothService? = null) {
+    val context = LocalContext.current
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.DETECTION) }
+    
+    // Shared state
+    var historyFiles by remember { mutableStateOf(SensorDataParser.getHistoryFiles(context)) }
+    var activeLiveUrl by remember { mutableStateOf<String?>(null) }
+    var detectionServerUrl by rememberSaveable { mutableStateOf("http://10.0.2.2:5000/detect") }
+
+    // Persistent Polling Loop
+    LaunchedEffect(activeLiveUrl) {
+        if (activeLiveUrl != null) {
+            while (true) {
+                val result = SensorDataParser.downloadFileFromServer(context, activeLiveUrl!!)
+                if (result.isSuccess) {
+                    historyFiles = SensorDataParser.getHistoryFiles(context)
+                }
+                delay(5000)
+            }
+        }
+    }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -71,16 +99,36 @@ fun FoodSpoilageDetectorApp() {
                     },
                     label = { Text(it.label) },
                     selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    onClick = { 
+                        if (it == AppDestinations.HISTORY) {
+                            historyFiles = SensorDataParser.getHistoryFiles(context)
+                        }
+                        currentDestination = it 
+                    }
                 )
             }
         }
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
-                AppDestinations.DETECTION -> DetectionScreen(modifier = Modifier.padding(innerPadding))
-                AppDestinations.HISTORY -> PlaceholderScreen(stringResource(R.string.nav_history), modifier = Modifier.padding(innerPadding))
-                AppDestinations.SETTINGS -> SettingsScreen(modifier = Modifier.padding(innerPadding))
+                AppDestinations.DETECTION -> DetectionScreen(
+                    bluetoothService = bluetoothService,
+                    historyFiles = historyFiles,
+                    detectionServerUrl = detectionServerUrl,
+                    modifier = Modifier.padding(innerPadding)
+                )
+                AppDestinations.HISTORY -> HistoryScreen(
+                    historyFiles = historyFiles,
+                    activeLiveUrl = activeLiveUrl,
+                    onLiveUrlChanged = { activeLiveUrl = it },
+                    onHistoryUpdated = { historyFiles = SensorDataParser.getHistoryFiles(context) },
+                    modifier = Modifier.padding(innerPadding)
+                )
+                AppDestinations.SETTINGS -> SettingsScreen(
+                    serverUrl = detectionServerUrl,
+                    onServerUrlChanged = { detectionServerUrl = it },
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
         }
     }
@@ -96,8 +144,11 @@ enum class AppDestinations(
 }
 
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
-    // Get current language (default to English "en")
+fun SettingsScreen(
+    serverUrl: String,
+    onServerUrlChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val currentLocale = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().get(0)?.language ?: "en"
 
     val languages = listOf(
@@ -120,7 +171,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        // Change the app's language
                         val appLocale = LocaleListCompat.forLanguageTags(code)
                         androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(appLocale)
                     }
@@ -129,7 +179,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             ) {
                 RadioButton(
                     selected = (code == currentLocale),
-                    onClick = null // Handled by Row clickable
+                    onClick = null
                 )
                 Text(
                     text = label,
@@ -138,8 +188,31 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Detection Server Configuration", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = serverUrl,
+            onValueChange = onServerUrlChanged,
+            label = { Text("Server URL (e.g., http://192.168.1.5:5000/detect)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        
+        Text(
+            text = "Update this URL if your computer's IP address changes on a new WiFi network.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
+
 @Composable
 fun PlaceholderScreen(name: String, modifier: Modifier = Modifier) {
     Box(
