@@ -1,0 +1,147 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1784018990.0768065,
+    "ast_hash": "664fa4cfab15d6e58330d9afe0432164",
+    "semantic_hash": "664fa4cfab15d6e58330d9afe0432164"
+  },
+  "app/build.gradle.kts": {
+    "mtime": 1783497833.5222683,
+    "ast_hash": "bf0e841e9dafd2d1654d9d3046661278",
+    "semantic_hash": "bf0e841e9dafd2d1654d9d3046661278"
+  },
+  "app/src/androidTest/java/com/example/foodspoilagedetector/ExampleInstrumentedTest.kt": {
+    "mtime": 1783478739.8646657,
+    "ast_hash": "72f9796c31b9fe9c6edd7cf668d7f0ed",
+    "semantic_hash": "72f9796c31b9fe9c6edd7cf668d7f0ed"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/MainActivity.kt": {
+    "mtime": 1784011078.9977186,
+    "ast_hash": "309fe6fa7174918af9f3b6283ce33cb5",
+    "semantic_hash": "309fe6fa7174918af9f3b6283ce33cb5"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/bluetooth/BluetoothService.kt": {
+    "mtime": 1783584514.6957762,
+    "ast_hash": "1d229a5333fd487b777f700110029727",
+    "semantic_hash": "1d229a5333fd487b777f700110029727"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/model/SensorData.kt": {
+    "mtime": 1783913704.8533783,
+    "ast_hash": "62063049104a136b55bc2e9a932e6943",
+    "semantic_hash": "62063049104a136b55bc2e9a932e6943"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/service/MonitoringService.kt": {
+    "mtime": 1784002493.5465896,
+    "ast_hash": "8891c23d130263d7c849a7bcd078893c",
+    "semantic_hash": "8891c23d130263d7c849a7bcd078893c"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/DetectionScreen.kt": {
+    "mtime": 1784002427.4581962,
+    "ast_hash": "1cee2e67103b8587628b789920fc0bf1",
+    "semantic_hash": "1cee2e67103b8587628b789920fc0bf1"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/HistoryScreen.kt": {
+    "mtime": 1784002374.4970515,
+    "ast_hash": "769442cfed74acb5331b65c7620b14fa",
+    "semantic_hash": "769442cfed74acb5331b65c7620b14fa"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/components/PermissionDialog.kt": {
+    "mtime": 1784002337.5735316,
+    "ast_hash": "6080322fd0708ff6cef055f0399c5438",
+    "semantic_hash": "6080322fd0708ff6cef055f0399c5438"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/components/SensorGraph.kt": {
+    "mtime": 1783585719.6129122,
+    "ast_hash": "19cf19b1275954721d796826a5a6bc66",
+    "semantic_hash": "19cf19b1275954721d796826a5a6bc66"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/theme/Color.kt": {
+    "mtime": 1783478740.7200568,
+    "ast_hash": "bc5a014ca38c73bfff7d1da32cfa94a5",
+    "semantic_hash": "bc5a014ca38c73bfff7d1da32cfa94a5"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/theme/Theme.kt": {
+    "mtime": 1783478741.0784206,
+    "ast_hash": "ca78c701465469524f5b09818965971a",
+    "semantic_hash": "ca78c701465469524f5b09818965971a"
+  },
+  "app/src/main/java/com/example/foodspoilagedetector/ui/theme/Type.kt": {
+    "mtime": 1783478740.7244446,
+    "ast_hash": "7b5febc1a3b605dd97da363fecb74abf",
+    "semantic_hash": "7b5febc1a3b605dd97da363fecb74abf"
+  },
+  "app/src/test/java/com/example/foodspoilagedetector/ExampleUnitTest.kt": {
+    "mtime": 1783478739.84112,
+    "ast_hash": "51f50e6bba5eb0013847e693dc1226a8",
+    "semantic_hash": "51f50e6bba5eb0013847e693dc1226a8"
+  },
+  "app/src/test/java/com/example/foodspoilagedetector/model/SensorDataParserTest.kt": {
+    "mtime": 1783581239.6386416,
+    "ast_hash": "df138f3ca73eaa2f275ae16c24cfd0cf",
+    "semantic_hash": "df138f3ca73eaa2f275ae16c24cfd0cf"
+  },
+  "build.gradle.kts": {
+    "mtime": 1783478740.8581083,
+    "ast_hash": "f49e4fcefdb4de67e72283440b2f3b75",
+    "semantic_hash": "f49e4fcefdb4de67e72283440b2f3b75"
+  },
+  "gradlew": {
+    "mtime": 1783478738.2111752,
+    "ast_hash": "266606e78242737ef3da02a80ea0564d",
+    "semantic_hash": "266606e78242737ef3da02a80ea0564d"
+  },
+  "settings.gradle.kts": {
+    "mtime": 1783478739.3921204,
+    "ast_hash": "f5f0712d048991c98e2ff7d2ee7a26af",
+    "semantic_hash": "f5f0712d048991c98e2ff7d2ee7a26af"
+  },
+  "app/src/main/res/mipmap-hdpi/ic_launcher.webp": {
+    "mtime": 1783478739.2700624,
+    "ast_hash": "39d9bb21eb48f128a71c3f01ad3cd427",
+    "semantic_hash": "39d9bb21eb48f128a71c3f01ad3cd427"
+  },
+  "app/src/main/res/mipmap-hdpi/ic_launcher_round.webp": {
+    "mtime": 1783478739.272779,
+    "ast_hash": "70d6f58af3c76ee221c829b1ce9daa04",
+    "semantic_hash": "70d6f58af3c76ee221c829b1ce9daa04"
+  },
+  "app/src/main/res/mipmap-mdpi/ic_launcher.webp": {
+    "mtime": 1783478739.276845,
+    "ast_hash": "d2acce71c7b46e5e9540d23a9f7b2166",
+    "semantic_hash": "d2acce71c7b46e5e9540d23a9f7b2166"
+  },
+  "app/src/main/res/mipmap-mdpi/ic_launcher_round.webp": {
+    "mtime": 1783478739.279661,
+    "ast_hash": "6376acb48f96a855ee95c113cd7fd616",
+    "semantic_hash": "6376acb48f96a855ee95c113cd7fd616"
+  },
+  "app/src/main/res/mipmap-xhdpi/ic_launcher.webp": {
+    "mtime": 1783478739.283804,
+    "ast_hash": "bd087d80b70bec05a43c745f29dc3ffc",
+    "semantic_hash": "bd087d80b70bec05a43c745f29dc3ffc"
+  },
+  "app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp": {
+    "mtime": 1783478739.2861571,
+    "ast_hash": "7479edd56ab712609f030054bffd7263",
+    "semantic_hash": "7479edd56ab712609f030054bffd7263"
+  },
+  "app/src/main/res/mipmap-xxhdpi/ic_launcher.webp": {
+    "mtime": 1783478739.2903068,
+    "ast_hash": "ea180e8d1a2e8300cc998b987266b736",
+    "semantic_hash": "ea180e8d1a2e8300cc998b987266b736"
+  },
+  "app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp": {
+    "mtime": 1783478739.2931414,
+    "ast_hash": "947842742b29eeda80ee0805e1600366",
+    "semantic_hash": "947842742b29eeda80ee0805e1600366"
+  },
+  "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp": {
+    "mtime": 1783478739.2971296,
+    "ast_hash": "54ab624970c86c2146e76b93f27586f7",
+    "semantic_hash": "54ab624970c86c2146e76b93f27586f7"
+  },
+  "app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp": {
+    "mtime": 1783478739.299343,
+    "ast_hash": "9ee591be72fb336861a8044086054daa",
+    "semantic_hash": "9ee591be72fb336861a8044086054daa"
+  }
+}
