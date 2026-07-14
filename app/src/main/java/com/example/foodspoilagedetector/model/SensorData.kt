@@ -12,6 +12,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 data class SensorReading(
     val timestamp: Long,
@@ -68,6 +70,15 @@ object SensorRegistry {
 
 object SensorDataParser {
     private const val TAG = "SensorDataParser"
+
+    /** Sensor key -> the gateway subfolder that logs its .jsonl history. */
+    private val SENSOR_JSONL_LOCATIONS = mapOf(
+        "C2H4" to "esp32_env", "C2H5OH" to "esp32_env",
+        "DHT1_T" to "esp32_env", "DHT1_H" to "esp32_env",
+        "DHT2_T" to "esp32_env", "DHT2_H" to "esp32_env",
+        "CH3SH" to "esp32_gas", "H2S" to "esp32_gas",
+        "NH3" to "esp32_gas", "VOC" to "esp32_gas"
+    )
 
     fun saveFileToHistory(context: Context, uri: Uri): String? {
         return try {
@@ -222,6 +233,65 @@ object SensorDataParser {
             } catch (e: Exception) {
                 Result.failure(e)
             }
+        }
+    }
+
+    /** Parses one line of a per-sensor .jsonl log, e.g. {"timestamp":"...","sensor":"VOC","value":0.0,...}. */
+    fun parseJsonlLine(line: String): SensorReading? {
+        if (line.isBlank()) return null
+        return try {
+            val obj = org.json.JSONObject(line)
+            val sensorKey = obj.optString("sensor")
+            val value = obj.optDouble("value", Double.NaN)
+            if (sensorKey.isEmpty() || value.isNaN()) return null
+            SensorReading(
+                timestamp = parseIsoTimestamp(obj.optString("timestamp")),
+                values = mapOf(sensorKey to value.toFloat())
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Parses every line of a per-sensor .jsonl log into readings, skipping malformed lines. */
+    fun parseJsonlContent(content: String): List<SensorReading> {
+        return content.lines().mapNotNull { parseJsonlLine(it) }
+    }
+
+    /** Fetches and parses one sensor's {dataServerUrl}/{subfolder}/{sensorKey}.jsonl history log. */
+    suspend fun fetchSensorHistory(dataServerUrl: String, sensorKey: String, subfolder: String): Result<List<SensorReading>> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("${dataServerUrl.trimEnd('/')}/$subfolder/$sensorKey.jsonl")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                if (connection.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    Result.success(parseJsonlContent(body))
+                } else {
+                    Result.failure(Exception("Server returned: ${connection.responseCode}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Fetches every known sensor's .jsonl history in parallel and merges them into one
+     * timestamp-sorted list. Each SensorReading only carries its own sensor's key, so
+     * this plugs directly into the existing SensorGraphCard/SensorGraph without needing
+     * to merge readings by timestamp across sensors. Sensors whose file is missing or
+     * fails to fetch are silently skipped rather than failing the whole history.
+     */
+    suspend fun fetchAllSensorHistory(dataServerUrl: String): List<SensorReading> {
+        return kotlinx.coroutines.coroutineScope {
+            SENSOR_JSONL_LOCATIONS.map { (sensorKey, subfolder) ->
+                async { fetchSensorHistory(dataServerUrl, sensorKey, subfolder).getOrNull() }
+            }.awaitAll().filterNotNull().flatten().sortedBy { it.timestamp }
         }
     }
 

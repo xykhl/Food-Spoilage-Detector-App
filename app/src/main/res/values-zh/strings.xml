@@ -29,6 +29,10 @@
     <string name="title_sensor_dashboard">传感器仪表盘</string>
     <string name="label_view_mode">视图模式</string>
     <string name="label_dashboard_combined">仪表盘 (合并所有)</string>
+    <string name="label_live_sensor_history">实时传感器历史</string>
+    <string name="msg_set_data_server_first">请先在设置中配置数据服务器 URL。</string>
+    <string name="msg_no_live_history_found">在数据服务器上未找到传感器历史记录。</string>
+    <string name="btn_refresh">刷新</string>
     <string name="label_saved_files">已保存文件</string>
     <string name="btn_upload_dat">上传新 .DAT</string>
     <string name="btn_sync_computer">从电脑同步</string>

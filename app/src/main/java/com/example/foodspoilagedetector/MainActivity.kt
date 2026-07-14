@@ -194,6 +194,7 @@ fun FoodSpoilageDetectorApp(bluetoothService: BluetoothService? = null) {
                 )
                 AppDestinations.HISTORY -> HistoryScreen(
                     historyFiles = historyFiles,
+                    dataServerUrl = dataServerUrl,
                     onHistoryUpdated = { historyFiles = SensorDataParser.getHistoryFiles(context) },
                     modifier = Modifier.padding(innerPadding)
                 )

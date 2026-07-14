@@ -26,9 +26,12 @@ fun SensorGraph(
     unit: String = "",
     lineColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    val sensorData = readings.mapNotNull { it.values[sensorKey] }
-    val timeLabels = readings.map { formatTime(it.timestamp) }
-    
+    // Pair value with its own timestamp so labels stay correct even when readings
+    // mix multiple independently-timestamped sensors (e.g. per-sensor jsonl history).
+    val points = readings.mapNotNull { reading -> reading.values[sensorKey]?.let { it to reading.timestamp } }
+    val sensorData = points.map { it.first }
+    val timeLabels = points.map { formatTime(it.second) }
+
     if (sensorData.isEmpty()) return
 
     val maxVal = sensorData.maxOrNull() ?: 1f

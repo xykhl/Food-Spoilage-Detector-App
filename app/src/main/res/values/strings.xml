@@ -29,6 +29,10 @@
     <string name="title_sensor_dashboard">Sensor Dashboard</string>
     <string name="label_view_mode">View Mode</string>
     <string name="label_dashboard_combined">Dashboard (Combined All)</string>
+    <string name="label_live_sensor_history">Live Sensor History</string>
+    <string name="msg_set_data_server_first">Set a Data Server URL in Settings first.</string>
+    <string name="msg_no_live_history_found">No sensor history found on the data server.</string>
+    <string name="btn_refresh">Refresh</string>
     <string name="label_saved_files">Saved Files</string>
     <string name="btn_upload_dat">Upload New .DAT</string>
     <string name="btn_sync_computer">Sync from Computer</string>

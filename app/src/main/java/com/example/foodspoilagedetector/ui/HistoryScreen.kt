@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +34,7 @@ import java.io.File
 @Composable
 fun HistoryScreen(
     historyFiles: List<File>,
+    dataServerUrl: String,
     onHistoryUpdated: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -41,6 +43,10 @@ fun HistoryScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     var selectedFile by remember { mutableStateOf<File?>(null) } // null means combined view
+    var isLiveHistory by remember { mutableStateOf(false) }
+    var liveHistoryRefreshTrigger by remember { mutableStateOf(0) }
+    var isLoadingLiveHistory by remember { mutableStateOf(false) }
+    var liveHistoryError by remember { mutableStateOf<String?>(null) }
 
     var sensorReadings by remember { mutableStateOf<List<SensorReading>>(emptyList()) }
     var availableSensors by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -59,9 +65,22 @@ fun HistoryScreen(
         }
     }
 
-    // Load data based on selectedFile
-    LaunchedEffect(selectedFile, historyFiles) {
-        if (selectedFile != null) {
+    // Load data based on the selected view mode
+    LaunchedEffect(selectedFile, historyFiles, isLiveHistory, liveHistoryRefreshTrigger) {
+        if (isLiveHistory) {
+            liveHistoryError = null
+            if (dataServerUrl.isBlank()) {
+                sensorReadings = emptyList()
+                liveHistoryError = context.getString(R.string.msg_set_data_server_first)
+            } else {
+                isLoadingLiveHistory = true
+                sensorReadings = SensorDataParser.fetchAllSensorHistory(dataServerUrl)
+                isLoadingLiveHistory = false
+                if (sensorReadings.isEmpty()) {
+                    liveHistoryError = context.getString(R.string.msg_no_live_history_found)
+                }
+            }
+        } else if (selectedFile != null) {
             sensorReadings = loadFileDataSync(selectedFile!!)
         } else {
             // Aggregated View
@@ -90,17 +109,30 @@ fun HistoryScreen(
                 
                 NavigationDrawerItem(
                     label = { Text(stringResource(R.string.label_dashboard_combined)) },
-                    selected = selectedFile == null,
+                    selected = selectedFile == null && !isLiveHistory,
                     onClick = {
                         selectedFile = null
+                        isLiveHistory = false
                         scope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
-                
+
+                NavigationDrawerItem(
+                    label = { Text(stringResource(R.string.label_live_sensor_history)) },
+                    selected = isLiveHistory,
+                    onClick = {
+                        selectedFile = null
+                        isLiveHistory = true
+                        liveHistoryRefreshTrigger++
+                        scope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
-                
+
                 Text(
                     stringResource(R.string.label_saved_files), 
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), 
@@ -118,9 +150,10 @@ fun HistoryScreen(
                         ) {
                             NavigationDrawerItem(
                                 label = { Text(file.name) },
-                                selected = selectedFile == file,
+                                selected = selectedFile == file && !isLiveHistory,
                                 onClick = {
                                     selectedFile = file
+                                    isLiveHistory = false
                                     scope.launch { drawerState.close() }
                                 },
                                 modifier = Modifier.weight(1f).padding(NavigationDrawerItemDefaults.ItemPadding)
@@ -201,24 +234,46 @@ fun HistoryScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(if (selectedFile == null) stringResource(R.string.title_sensor_dashboard) else selectedFile!!.name)
+                        Text(
+                            when {
+                                isLiveHistory -> stringResource(R.string.label_live_sensor_history)
+                                selectedFile == null -> stringResource(R.string.title_sensor_dashboard)
+                                else -> selectedFile!!.name
+                            }
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
+                    },
+                    actions = {
+                        if (isLiveHistory) {
+                            IconButton(onClick = { liveHistoryRefreshTrigger++ }) {
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.btn_refresh))
+                            }
+                        }
                     }
                 )
             }
         ) { padding ->
-            if (sensorReadings.isEmpty()) {
+            if (isLoadingLiveHistory) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding), 
+                        .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.label_no_data_found))
+                    CircularProgressIndicator()
+                }
+            } else if (sensorReadings.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(liveHistoryError ?: stringResource(R.string.label_no_data_found))
                 }
             } else {
                 Column(
