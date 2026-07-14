@@ -18,8 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.foodspoilagedetector.R
 import com.example.foodspoilagedetector.model.SensorDataParser
 import com.example.foodspoilagedetector.model.SensorReading
 import com.example.foodspoilagedetector.model.SensorRegistry
@@ -31,8 +33,6 @@ import java.io.File
 @Composable
 fun HistoryScreen(
     historyFiles: List<File>,
-    activeLiveUrl: String?,
-    onLiveUrlChanged: (String?) -> Unit,
     onHistoryUpdated: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -41,13 +41,12 @@ fun HistoryScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     var selectedFile by remember { mutableStateOf<File?>(null) } // null means combined view
-    
+
     var sensorReadings by remember { mutableStateOf<List<SensorReading>>(emptyList()) }
     var availableSensors by remember { mutableStateOf<List<String>>(emptyList()) }
 
     var showSyncDialog by remember { mutableStateOf(false) }
     var serverUrl by remember { mutableStateOf("http://localhost:8000/") }
-    var isLiveSync by remember { mutableStateOf(false) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -76,21 +75,21 @@ fun HistoryScreen(
         drawerContent = {
             ModalDrawerSheet {
                 Text(
-                    "Sensor History", 
+                    stringResource(R.string.title_sensor_history), 
                     modifier = Modifier.padding(16.dp), 
                     style = MaterialTheme.typography.titleLarge
                 )
                 HorizontalDivider()
                 
                 Text(
-                    "View Mode", 
+                    stringResource(R.string.label_view_mode), 
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), 
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
                 
                 NavigationDrawerItem(
-                    label = { Text("Dashboard (Combined All)") },
+                    label = { Text(stringResource(R.string.label_dashboard_combined)) },
                     selected = selectedFile == null,
                     onClick = {
                         selectedFile = null
@@ -103,7 +102,7 @@ fun HistoryScreen(
                 HorizontalDivider()
                 
                 Text(
-                    "Saved Files", 
+                    stringResource(R.string.label_saved_files), 
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), 
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
@@ -143,19 +142,19 @@ fun HistoryScreen(
                 ) {
                     Icon(Icons.Default.FileUpload, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Upload New .DAT")
+                    Text(stringResource(R.string.btn_upload_dat))
                 }
                 
                 OutlinedButton(
-                    onClick = { 
+                    onClick = {
                         showSyncDialog = true
                         scope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth()
                 ) {
-                    Icon(if (activeLiveUrl != null) Icons.Default.Sync else Icons.Default.Sync, contentDescription = null)
+                    Icon(Icons.Default.Sync, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (activeLiveUrl != null) "Stop Live Sync" else "Sync from Computer")
+                    Text(stringResource(R.string.btn_sync_computer))
                 }
             }
         }
@@ -163,59 +162,35 @@ fun HistoryScreen(
         if (showSyncDialog) {
             AlertDialog(
                 onDismissRequest = { showSyncDialog = false },
-                title = { Text(if (activeLiveUrl != null) "Active Sync" else "Sync from Computer") },
+                title = { Text(stringResource(R.string.title_sync_dialog)) },
                 text = {
                     Column {
-                        if (activeLiveUrl == null) {
-                            Text("Enter the file URL (e.g., http://localhost:8000/data.DAT)")
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = serverUrl,
-                                onValueChange = { serverUrl = it },
-                                label = { Text("Server URL") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = isLiveSync,
-                                    onCheckedChange = { isLiveSync = it }
-                                )
-                                Text("Stay Synced (Live Polling)")
-                            }
-                        } else {
-                            Text("Currently syncing from: $activeLiveUrl")
-                        }
+                        Text(stringResource(R.string.label_enter_url))
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = serverUrl,
+                            onValueChange = { serverUrl = it },
+                            label = { Text(stringResource(R.string.label_server_url)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 },
                 confirmButton = {
-                    if (activeLiveUrl == null) {
-                        Button(onClick = {
-                            scope.launch {
-                                val result = SensorDataParser.downloadFileFromServer(context, serverUrl)
-                                if (result.isSuccess) {
-                                    onHistoryUpdated()
-                                    if (isLiveSync) {
-                                        onLiveUrlChanged(serverUrl)
-                                    }
-                                }
-                                showSyncDialog = false
+                    Button(onClick = {
+                        scope.launch {
+                            val result = SensorDataParser.downloadFileFromServer(context, serverUrl)
+                            if (result.isSuccess) {
+                                onHistoryUpdated()
                             }
-                        }) {
-                            Text(if (isLiveSync) "Start Live Sync" else "Download Once")
-                        }
-                    } else {
-                        Button(onClick = {
-                            onLiveUrlChanged(null)
                             showSyncDialog = false
-                        }) {
-                            Text("Stop Sync")
                         }
+                    }) {
+                        Text(stringResource(R.string.btn_download_once))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showSyncDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.btn_close))
                     }
                 }
             )
@@ -225,24 +200,8 @@ fun HistoryScreen(
             modifier = modifier,
             topBar = {
                 TopAppBar(
-                    title = { 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (selectedFile == null) "Sensor Dashboard" else selectedFile!!.name)
-                            if (activeLiveUrl != null) {
-                                Spacer(Modifier.width(12.dp))
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                                ) {
-                                    Text(
-                                        "● LIVE", 
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
+                    title = {
+                        Text(if (selectedFile == null) stringResource(R.string.title_sensor_dashboard) else selectedFile!!.name)
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -259,7 +218,7 @@ fun HistoryScreen(
                         .padding(padding), 
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No data found. Open the side menu to upload files.")
+                    Text(stringResource(R.string.label_no_data_found))
                 }
             } else {
                 Column(
@@ -310,7 +269,7 @@ fun SensorGraphCard(sensorKey: String, readings: List<SensorReading>) {
                 )
                 if (values.isNotEmpty()) {
                     Text(
-                        text = "Avg: ${values.average().format(2)} $unit",
+                        text = stringResource(R.string.label_avg, values.average(), unit),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -336,12 +295,12 @@ fun SensorGraphCard(sensorKey: String, readings: List<SensorReading>) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Min: ${values.minOrNull()} $unit",
+                        text = stringResource(R.string.label_min, values.minOrNull() ?: 0f, unit),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "Max: ${values.maxOrNull()} $unit",
+                        text = stringResource(R.string.label_max, values.maxOrNull() ?: 0f, unit),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f)
                     )

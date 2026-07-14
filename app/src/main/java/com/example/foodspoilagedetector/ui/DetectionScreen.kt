@@ -69,9 +69,10 @@ fun DetectionScreen(
     bluetoothService: BluetoothService? = null,
     historyFiles: List<File> = emptyList(),
     detectionServerUrl: String = "http://localhost:5000/detect",
+    fridgeImageUri: Uri? = null,
+    liveSensorReading: SensorReading? = null,
     modifier: Modifier = Modifier
 ) {
-    val detectionPlaceholder = stringResource(R.string.placeholder_result)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -114,19 +115,19 @@ fun DetectionScreen(
 
     fun updateSensorStatesFromReading(reading: SensorReading) {
         previousValues = mapOf(
-            "Ethanol" to ethanol, "Ethylene" to ethylene, "VOC" to voc, "H2S" to hydrogenSulfide,
-            "Ammonia (NH3)" to ammonia, "Methanethiol (CH3SH)" to methylMercaptan,
-            "DHT11 #1 Temp" to temperature, "DHT11 #1 Humi" to humidity
+            "C2H5OH" to ethanol, "C2H4" to ethylene, "VOC" to voc, "H2S" to hydrogenSulfide,
+            "NH3" to ammonia, "CH3SH" to methylMercaptan,
+            "DHT1_T" to temperature, "DHT1_H" to humidity
         )
 
-        reading.values["Ethanol"]?.let { ethanol = it.toString() }
-        reading.values["Ethylene"]?.let { ethylene = it.toString() }
+        reading.values["C2H5OH"]?.let { ethanol = it.toString() }
+        reading.values["C2H4"]?.let { ethylene = it.toString() }
         reading.values["VOC"]?.let { voc = it.toString() }
         reading.values["H2S"]?.let { hydrogenSulfide = it.toString() }
-        reading.values["Ammonia (NH3)"]?.let { ammonia = it.toString() }
-        reading.values["Methanethiol (CH3SH)"]?.let { methylMercaptan = it.toString() }
-        reading.values["DHT11 #1 Temp"]?.let { temperature = it.toString() }
-        reading.values["DHT11 #1 Humi"]?.let { humidity = it.toString() }
+        reading.values["NH3"]?.let { ammonia = it.toString() }
+        reading.values["CH3SH"]?.let { methylMercaptan = it.toString() }
+        reading.values["DHT1_T"]?.let { temperature = it.toString() }
+        reading.values["DHT1_H"]?.let { humidity = it.toString() }
     }
 
     LaunchedEffect(connectionStatus, historyFiles) {
@@ -143,6 +144,10 @@ fun DetectionScreen(
         latestReading?.let { updateSensorStatesFromReading(it) }
     }
 
+    LaunchedEffect(liveSensorReading) {
+        liveSensorReading?.let { updateSensorStatesFromReading(it) }
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) { imageUri = uri; spoilageResult = null }
     }
@@ -150,6 +155,9 @@ fun DetectionScreen(
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) { imageUri = tempPhotoUri; spoilageResult = null }
     }
+
+    // Auto-select fridge camera image if available and no user photo selected
+    val displayImageUri = imageUri ?: fridgeImageUri
 
     Column(
         modifier = modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -170,10 +178,10 @@ fun DetectionScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = when (connectionStatus) {
-                            BluetoothService.ConnectionStatus.CONNECTED -> "Connected"
-                            BluetoothService.ConnectionStatus.CONNECTING -> "Connecting..."
-                            BluetoothService.ConnectionStatus.SCANNING -> "Scanning..."
-                            else -> "Sensor Offline"
+                            BluetoothService.ConnectionStatus.CONNECTED -> stringResource(R.string.status_connected)
+                            BluetoothService.ConnectionStatus.CONNECTING -> stringResource(R.string.status_connecting)
+                            BluetoothService.ConnectionStatus.SCANNING -> stringResource(R.string.status_scanning)
+                            else -> stringResource(R.string.status_offline)
                         },
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -182,7 +190,7 @@ fun DetectionScreen(
                     if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) bluetoothService?.disconnect()
                     else permissionLauncher.launch(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
                 }) {
-                    Text(if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) "Disconnect" else "Connect")
+                    Text(if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) stringResource(R.string.btn_disconnect) else stringResource(R.string.btn_connect))
                 }
             }
         }
@@ -190,8 +198,17 @@ fun DetectionScreen(
         // Image Card
         Card(modifier = Modifier.fillMaxWidth().height(250.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (imageUri != null) {
-                    AsyncImage(model = imageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (displayImageUri != null) {
+                    AsyncImage(model = displayImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    if (imageUri == null && fridgeImageUri != null) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                        ) {
+                            Text(stringResource(R.string.label_live_camera), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 } else {
                     Icon(painterResource(id = R.drawable.ic_launcher_foreground), null, Modifier.size(80.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
@@ -200,14 +217,20 @@ fun DetectionScreen(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { val uri = createImageUriInDetection(context); tempPhotoUri = uri; cameraLauncher.launch(uri) }, Modifier.weight(1f)) {
-                Icon(Icons.Default.AddAPhoto, null); Spacer(Modifier.width(8.dp)); Text("Take Photo")
+                Icon(Icons.Default.AddAPhoto, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_take_photo))
             }
             OutlinedButton(onClick = { photoPickerLauncher.launch("image/*") }, Modifier.weight(1f)) {
-                Icon(Icons.Default.PhotoLibrary, null); Spacer(Modifier.width(8.dp)); Text("Gallery")
+                Icon(Icons.Default.PhotoLibrary, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_gallery))
             }
         }
 
         HorizontalDivider()
+
+        Text(
+            text = stringResource(R.string.title_sensor_data),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.align(Alignment.Start)
+        )
 
         SensorInputGridInDetection(ethanol, ethylene, voc, hydrogenSulfide, ammonia, methylMercaptan, temperature, humidity, previousValues)
 
@@ -216,29 +239,29 @@ fun DetectionScreen(
                 scope.launch {
                     isDetecting = true; errorMessage = null
                     val currentData = mapOf(
-                        "Ethanol" to ethanol, "Ethylene" to ethylene, "VOC" to voc, "H2S" to hydrogenSulfide,
-                        "Ammonia (NH3)" to ammonia, "Methanethiol (CH3SH)" to methylMercaptan, "Temp" to temperature, "Humi" to humidity
+                        "C2H5OH" to ethanol, "C2H4" to ethylene, "VOC" to voc, "H2S" to hydrogenSulfide,
+                        "NH3" to ammonia, "CH3SH" to methylMercaptan, "DHT1_T" to temperature, "DHT1_H" to humidity
                     )
-                    val result = SensorDataParser.detectSpoilage(context, detectionServerUrl, currentData, imageUri)
+                    val result = SensorDataParser.detectSpoilage(context, detectionServerUrl, currentData, displayImageUri)
                     if (result.isSuccess) spoilageResult = result.getOrNull()
-                    else errorMessage = "Detection failed. Check server connection."
+                    else errorMessage = context.getString(R.string.msg_detection_failed)
                     isDetecting = false
                 }
             },
-            enabled = !isDetecting && imageUri != null,
+            enabled = !isDetecting && displayImageUri != null,
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
         ) {
             if (isDetecting) CircularProgressIndicator(Modifier.size(24.dp), Color.White)
-            else Text("Detect Spoilage")
+            else Text(stringResource(R.string.btn_detect))
         }
 
         if (errorMessage != null) Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
 
         // Multi-Food Result Interface
         spoilageResult?.let { result ->
-            Text("Detection Results", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+            Text(stringResource(R.string.title_detection_results), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             
-            // Top Status Card (Summary only, no global percentage)
+            // Top Status Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -265,7 +288,7 @@ fun DetectionScreen(
 
             if (result.detectedFoods.isNotEmpty()) {
                 result.detectedFoods.forEach { food ->
-                    DetectedFoodCard(food = food, originalImageUri = imageUri, context = context)
+                    DetectedFoodCard(food = food, originalImageUri = displayImageUri, context = context)
                 }
             }
         }
@@ -275,9 +298,9 @@ fun DetectionScreen(
         Dialog(onDismissRequest = { showDeviceDialog = false }) {
             Card(Modifier.fillMaxWidth().height(400.dp).padding(16.dp)) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Select Sensor", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.title_select_sensor), style = MaterialTheme.typography.titleLarge)
                     if (foundDevices.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-                    else LazyColumn { items(foundDevices) { device -> ListItem(headlineContent = { @SuppressLint("MissingPermission") Text(device.name ?: "Unknown") }, modifier = Modifier.clickable { bluetoothService?.connect(device); showDeviceDialog = false }) } }
+                    else LazyColumn { items(foundDevices) { device -> ListItem(headlineContent = { @SuppressLint("MissingPermission") Text(device.name ?: stringResource(R.string.label_unknown)) }, modifier = Modifier.clickable { bluetoothService?.connect(device); showDeviceDialog = false }) } }
                 }
             }
         }
@@ -340,13 +363,13 @@ fun DetectedFoodCard(food: DetectedFood, originalImageUri: Uri?, context: Contex
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Probability: ${String.format(Locale.ENGLISH, "%.1f%%", food.probability * 100)}",
+                    text = stringResource(R.string.label_probability, food.probability * 100),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 
                 if (food.producedGases.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
-                    Text("Produced Gases:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.label_produced_gases), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -398,20 +421,20 @@ fun SensorInputGridInDetection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("Ethanol"), value = ethanol, previousValue = previousValues["Ethanol"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("Ethylene"), value = ethylene, previousValue = previousValues["Ethylene"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ethanol), value = ethanol, previousValue = previousValues["Ethanol"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ethylene), value = ethylene, previousValue = previousValues["Ethylene"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("VOC"), value = voc, previousValue = previousValues["VOC"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("H2S"), value = hydrogenSulfide, previousValue = previousValues["H2S"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_voc), value = voc, previousValue = previousValues["VOC"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_h2s), value = hydrogenSulfide, previousValue = previousValues["H2S"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("Ammonia (NH3)"), value = ammonia, previousValue = previousValues["Ammonia (NH3)"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("Methanethiol (CH3SH)"), value = methylMercaptan, previousValue = previousValues["Methanethiol (CH3SH)"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ammonia), value = ammonia, previousValue = previousValues["Ammonia (NH3)"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ch3sh), value = methylMercaptan, previousValue = previousValues["Methanethiol (CH3SH)"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("DHT11 #1 Temp"), value = temperature, previousValue = previousValues["DHT11 #1 Temp"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = SensorRegistry.getDisplayName("DHT11 #1 Humi"), value = humidity, previousValue = previousValues["DHT11 #1 Humi"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_temp), value = temperature, previousValue = previousValues["DHT11 #1 Temp"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_humidity), value = humidity, previousValue = previousValues["DHT11 #1 Humi"], modifier = Modifier.weight(1f))
         }
     }
 }

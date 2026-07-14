@@ -10,6 +10,8 @@ import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 data class SensorReading(
     val timestamp: Long,
@@ -36,14 +38,28 @@ data class SensorMetadata(
     val unit: String
 )
 
+data class CameraSnapshot(
+    val device: String,
+    val deviceId: String,
+    val timestamp: Long,
+    val width: Int,
+    val height: Int,
+    val path: String,
+    val historyFile: String
+)
+
 object SensorRegistry {
     private val metadataMap = mapOf(
-        "Methanethiol (CH3SH)" to SensorMetadata("CH3SH", "ppm"),
-        "Ammonia (NH3)" to SensorMetadata("Ammonia", "ppm"),
-        "DHT11 #1 Temp" to SensorMetadata("Temp 1", "°C"),
-        "DHT11 #1 Humi" to SensorMetadata("Humi 1", "%RH"),
-        "DHT11 #2 Temp" to SensorMetadata("Temp 2", "°C"),
-        "DHT11 #2 Humi" to SensorMetadata("Humi 2", "%RH")
+        "C2H4" to SensorMetadata("Ethylene", "ppm"),
+        "C2H5OH" to SensorMetadata("Ethanol", "%LEL"),
+        "DHT1_T" to SensorMetadata("Temp 1", "°C"),
+        "DHT1_H" to SensorMetadata("Humi 1", "%RH"),
+        "DHT2_T" to SensorMetadata("Temp 2", "°C"),
+        "DHT2_H" to SensorMetadata("Humi 2", "%RH"),
+        "CH3SH" to SensorMetadata("CH3SH", "ppm"),
+        "H2S" to SensorMetadata("H2S", "ppm"),
+        "NH3" to SensorMetadata("Ammonia", "ppm"),
+        "VOC" to SensorMetadata("VOC", "ppm")
     )
 
     fun getDisplayName(key: String): String = metadataMap[key]?.displayName ?: key
@@ -106,6 +122,100 @@ object SensorDataParser {
                         }
                     }
                     Result.success(fileName)
+                } else {
+                    Result.failure(Exception("Server returned: ${connection.responseCode}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /** Parses an ISO-8601 timestamp with numeric offset, e.g. "2026-07-14T15:05:26.969+08:00". */
+    fun parseIsoTimestamp(iso: String): Long {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
+            format.parse(iso)?.time ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    /**
+     * Parses a data/latest.json snapshot. The "sensors" key set varies run to run
+     * depending on which gateways last reported, so keys are read dynamically
+     * rather than assumed fixed.
+     */
+    fun parseLatestJson(json: String): Pair<SensorReading, CameraSnapshot?> {
+        val obj = org.json.JSONObject(json)
+        val timestamp = parseIsoTimestamp(obj.optString("updated_at"))
+
+        val values = mutableMapOf<String, Float>()
+        obj.optJSONObject("sensors")?.let { sensorsObj ->
+            sensorsObj.keys().forEach { key ->
+                val value = sensorsObj.optJSONObject(key)?.optDouble("value", Double.NaN)
+                if (value != null && !value.isNaN()) {
+                    values[key] = value.toFloat()
+                }
+            }
+        }
+
+        val camera = obj.optJSONObject("camera")?.let {
+            CameraSnapshot(
+                device = it.optString("device"),
+                deviceId = it.optString("device_id"),
+                timestamp = parseIsoTimestamp(it.optString("timestamp")),
+                width = it.optInt("width"),
+                height = it.optInt("height"),
+                path = it.optString("path"),
+                historyFile = it.optString("history_file")
+            )
+        }
+
+        return SensorReading(timestamp, values) to camera
+    }
+
+    /** Fetches and parses {dataServerUrl}/latest.json. */
+    suspend fun fetchLatestSnapshot(dataServerUrl: String): Result<Pair<SensorReading, CameraSnapshot?>> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("${dataServerUrl.trimEnd('/')}/latest.json")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                if (connection.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    Result.success(parseLatestJson(body))
+                } else {
+                    Result.failure(Exception("Server returned: ${connection.responseCode}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /** Fetches {dataServerUrl}/latest.jpg, overwriting the same local file each call. */
+    suspend fun fetchLatestImage(context: Context, dataServerUrl: String): Result<Uri> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("${dataServerUrl.trimEnd('/')}/latest.jpg")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                if (connection.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                    val liveDir = File(context.filesDir, "live").apply { if (!exists()) mkdirs() }
+                    val destFile = File(liveDir, "latest.jpg")
+                    connection.inputStream.use { input ->
+                        destFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Result.success(Uri.fromFile(destFile))
                 } else {
                     Result.failure(Exception("Server returned: ${connection.responseCode}"))
                 }

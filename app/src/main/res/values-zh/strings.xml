@@ -11,12 +11,12 @@
     <string name="btn_detect">开始检测</string>
     <string name="placeholder_result">集成模型后将在此显示检测结果。</string>
 
-    <string name="label_ethanol">乙醇 (Ethanol)</string>
-    <string name="label_ethylene">乙烯 (Ethylene)</string>
+    <string name="label_ethanol">乙醇</string>
+    <string name="label_ethylene">乙烯</string>
     <string name="label_voc">VOC</string>
-    <string name="label_h2s">硫化氢 (H2S)</string>
-    <string name="label_ammonia">氨气 (Ammonia)</string>
-    <string name="label_ch3sh">甲硫醇 (CH3SH)</string>
+    <string name="label_h2s">硫化氢</string>
+    <string name="label_ammonia">氨气</string>
+    <string name="label_ch3sh">甲硫醇</string>
     <string name="label_temp">温度 (°C)</string>
     <string name="label_humidity">湿度 (%)</string>
 
@@ -25,5 +25,71 @@
     <string name="lang_english">英文</string>
     <string name="lang_chinese">中文</string>
 
-    <string name="placeholder_history">历史记录界面占位符</string>
+    <string name="title_sensor_history">传感器历史</string>
+    <string name="title_sensor_dashboard">传感器仪表盘</string>
+    <string name="label_view_mode">视图模式</string>
+    <string name="label_dashboard_combined">仪表盘 (合并所有)</string>
+    <string name="label_saved_files">已保存文件</string>
+    <string name="btn_upload_dat">上传新 .DAT</string>
+    <string name="btn_sync_computer">从电脑同步</string>
+    <string name="label_no_data_found">未发现数据。请打开侧边栏上传文件。</string>
+    <string name="label_data_summary">数据摘要</string>
+    <string name="label_total_points">总数据点: %1$d</string>
+    <string name="label_avg">平均值: %1$.2f %2$s</string>
+    <string name="label_min">最小值: %1$.2f %2$s</string>
+    <string name="label_max">最大值: %1$.2f %2$s</string>
+    <string name="label_time">时间</string>
+
+    <string name="title_sync_dialog">从电脑同步</string>
+    <string name="label_enter_url">输入文件 URL (例如 http://localhost:8000/data.DAT)</string>
+    <string name="label_server_url">服务器 URL</string>
+    <string name="label_stay_synced">保持同步 (实时轮询)</string>
+    <string name="btn_start_live_sync">开始实时同步</string>
+    <string name="btn_download_once">下载一次</string>
+    <string name="label_currently_syncing">正在同步: %1$s</string>
+    <string name="btn_stop_sync">停止同步</string>
+    <string name="btn_close">关闭</string>
+    <string name="label_live_tag">实时</string>
+
+    <string name="title_detection_results">检测结果</string>
+    <string name="label_produced_gases">产生的气体:</string>
+    <string name="label_probability">变质概率: %1$.1f%%</string>
+    <string name="label_live_camera">实时摄像头</string>
+
+    <string name="status_connected">已连接</string>
+    <string name="status_connecting">正在连接...</string>
+    <string name="status_scanning">正在扫描...</string>
+    <string name="status_offline">传感器离线</string>
+    <string name="btn_connect">连接</string>
+    <string name="btn_disconnect">断开连接</string>
+
+    <string name="title_select_sensor">选择传感器</string>
+    <string name="label_unknown">未知</string>
+
+    <string name="msg_detection_failed">检测失败。请检查服务器连接。</string>
+
+    <string name="title_general_settings">通用设置</string>
+    <string name="title_monitoring_alerts">监控与警报</string>
+    <string name="label_background_monitoring">后台监控</string>
+    <string name="desc_background_monitoring">关闭应用后继续检查变质情况。</string>
+    <string name="title_server_config">服务器配置</string>
+    <string name="label_algorithm_server">算法服务器 URL</string>
+    <string name="label_fridge_camera">冰箱摄像头照片 URL</string>
+    <string name="label_data_server_url">数据服务器 URL</string>
+    <string name="desc_ensure_urls">确保这些 URL 在当前网络下正确。</string>
+
+    <string name="title_permissions_required">需要权限</string>
+    <string name="desc_permissions_intro">为了提供完整功能，应用需要以下权限:</string>
+    <string name="title_perm_camera">摄像头</string>
+    <string name="desc_perm_camera">需要拍照以进行变质分析。</string>
+    <string name="title_perm_location">位置与蓝牙</string>
+    <string name="desc_perm_location">需要连接并读取传感器设备的数据。</string>
+    <string name="title_perm_notifications">通知</string>
+    <string name="desc_perm_notifications">用于在后台发送紧急变质警报。</string>
+    <string name="btn_grant_permissions">授予权限</string>
+    <string name="btn_later">稍后</string>
+
+    <string name="notification_monitor_title">食物变质监控</string>
+    <string name="notification_monitor_text">正在后台积极监控传感器...</string>
+    <string name="notification_alert_title">变质警报! ⚠️</string>
 </resources>
