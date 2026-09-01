@@ -5,8 +5,6 @@
     <string name="nav_settings">Settings</string>
 
     <string name="title_detection">Food Spoilage Detection</string>
-    <string name="btn_take_photo">Take Photo</string>
-    <string name="btn_gallery">Gallery</string>
     <string name="title_sensor_data">Sensor Data</string>
     <string name="btn_detect">Detect Spoilage</string>
     <string name="placeholder_result">Detection result will appear here after models are integrated.</string>
@@ -34,9 +32,6 @@
     <string name="msg_no_live_history_found">No sensor history found on the data server.</string>
     <string name="btn_refresh">Refresh</string>
     <string name="label_saved_files">Saved Files</string>
-    <string name="btn_upload_dat">Upload New .DAT</string>
-    <string name="btn_sync_computer">Sync from Computer</string>
-    <string name="label_no_data_found">No data found. Open the side menu to upload files.</string>
     <string name="label_data_summary">Data Summary</string>
     <string name="label_total_points">Total Data Points: %1$d</string>
     <string name="label_avg">Avg: %1$.2f %2$s</string>
@@ -44,31 +39,31 @@
     <string name="label_max">Max: %1$.2f %2$s</string>
     <string name="label_time">Time</string>
 
-    <string name="title_sync_dialog">Sync from Computer</string>
-    <string name="label_enter_url">Enter the file URL (e.g., http://localhost:8000/data.DAT)</string>
-    <string name="label_server_url">Server URL</string>
-    <string name="label_stay_synced">Stay Synced (Live Polling)</string>
-    <string name="btn_start_live_sync">Start Live Sync</string>
-    <string name="btn_download_once">Download Once</string>
-    <string name="label_currently_syncing">Currently syncing from: %1$s</string>
-    <string name="btn_stop_sync">Stop Sync</string>
-    <string name="btn_close">Close</string>
     <string name="label_live_tag">LIVE</string>
+
+    <string name="title_detection_history">Detection History</string>
+    <string name="label_sensor_selection">Sensor Selection</string>
+    <string name="label_all_sensors">All Sensors</string>
+    <string name="label_historical_sessions">Historical Sessions</string>
+    <string name="label_live_current_feed">Live / Current Feed</string>
+    <string name="label_session_range">Session %1$s&#8211;%2$s</string>
+    <string name="msg_no_sessions_yet">No saved sessions yet. One is saved automatically when the data server disconnects.</string>
+    <string name="label_detection_at">Detection %1$s</string>
+    <string name="msg_no_data_in_session">No data in this session.</string>
+    <string name="msg_no_detections_yet">No saved detections yet. Run a detection to save one.</string>
+    <string name="msg_detection_load_failed">Could not load this detection.</string>
+    <string name="msg_no_photo_saved">No photo saved for this detection.</string>
+    <string name="title_spoilage_results">Spoilage Results</string>
+    <string name="desc_open_history_menu">Open History Menu</string>
+    <string name="desc_delete">Delete</string>
 
     <string name="title_detection_results">Detection Results</string>
     <string name="label_produced_gases">Produced Gases:</string>
-    <string name="label_probability">Probability: %1$.1f%%</string>
+    <string name="label_probability">Food Identification Confidence: %1$.1f%%</string>
     <string name="label_live_camera">LIVE CAMERA</string>
+    <string name="msg_waiting_for_camera">Waiting for the fridge camera…</string>
 
-    <string name="status_connected">Connected</string>
-    <string name="status_connecting">Connecting...</string>
-    <string name="status_scanning">Scanning...</string>
-    <string name="status_offline">Sensor Offline</string>
-    <string name="btn_connect">Connect</string>
-    <string name="btn_disconnect">Disconnect</string>
 
-    <string name="title_select_sensor">Select Sensor</string>
-    <string name="label_unknown">Unknown</string>
 
     <string name="msg_detection_failed">Detection failed. Check server connection.</string>
 
@@ -78,16 +73,13 @@
     <string name="desc_background_monitoring">Keep checking for spoilage even when the app is closed.</string>
     <string name="title_server_config">Server Configuration</string>
     <string name="label_algorithm_server">Algorithm Server URL</string>
+    <string name="label_automatic_detection_url">Automatic Detection URL</string>
     <string name="label_fridge_camera">Fridge Camera Photo URL</string>
     <string name="label_data_server_url">Data Server URL</string>
     <string name="desc_ensure_urls">Ensure these URLs are correct for your current network.</string>
 
     <string name="title_permissions_required">Permissions Required</string>
     <string name="desc_permissions_intro">To provide full functionality, the app needs the following permissions:</string>
-    <string name="title_perm_camera">Camera</string>
-    <string name="desc_perm_camera">Needed to take photos of food for spoilage analysis.</string>
-    <string name="title_perm_location">Location &amp; Bluetooth</string>
-    <string name="desc_perm_location">Required to connect to and read data from your sensor device.</string>
     <string name="title_perm_notifications">Notifications</string>
     <string name="desc_perm_notifications">Used to send urgent spoilage alerts in the background.</string>
     <string name="btn_grant_permissions">Grant Permissions</string>

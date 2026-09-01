@@ -5,8 +5,6 @@
     <string name="nav_settings">设置</string>
 
     <string name="title_detection">食物变质检测</string>
-    <string name="btn_take_photo">拍照</string>
-    <string name="btn_gallery">相册</string>
     <string name="title_sensor_data">传感器数据</string>
     <string name="btn_detect">开始检测</string>
     <string name="placeholder_result">集成模型后将在此显示检测结果。</string>
@@ -34,9 +32,6 @@
     <string name="msg_no_live_history_found">在数据服务器上未找到传感器历史记录。</string>
     <string name="btn_refresh">刷新</string>
     <string name="label_saved_files">已保存文件</string>
-    <string name="btn_upload_dat">上传新 .DAT</string>
-    <string name="btn_sync_computer">从电脑同步</string>
-    <string name="label_no_data_found">未发现数据。请打开侧边栏上传文件。</string>
     <string name="label_data_summary">数据摘要</string>
     <string name="label_total_points">总数据点: %1$d</string>
     <string name="label_avg">平均值: %1$.2f %2$s</string>
@@ -44,31 +39,31 @@
     <string name="label_max">最大值: %1$.2f %2$s</string>
     <string name="label_time">时间</string>
 
-    <string name="title_sync_dialog">从电脑同步</string>
-    <string name="label_enter_url">输入文件 URL (例如 http://localhost:8000/data.DAT)</string>
-    <string name="label_server_url">服务器 URL</string>
-    <string name="label_stay_synced">保持同步 (实时轮询)</string>
-    <string name="btn_start_live_sync">开始实时同步</string>
-    <string name="btn_download_once">下载一次</string>
-    <string name="label_currently_syncing">正在同步: %1$s</string>
-    <string name="btn_stop_sync">停止同步</string>
-    <string name="btn_close">关闭</string>
     <string name="label_live_tag">实时</string>
+
+    <string name="title_detection_history">检测历史</string>
+    <string name="label_sensor_selection">传感器选择</string>
+    <string name="label_all_sensors">所有传感器</string>
+    <string name="label_historical_sessions">历史记录</string>
+    <string name="label_live_current_feed">实时 / 当前数据</string>
+    <string name="label_session_range">会话 %1$s&#8211;%2$s</string>
+    <string name="msg_no_sessions_yet">暂无已保存的会话。数据服务器断开连接时会自动保存。</string>
+    <string name="label_detection_at">检测 %1$s</string>
+    <string name="msg_no_data_in_session">此记录中没有数据。</string>
+    <string name="msg_no_detections_yet">暂无已保存的检测记录。请先进行一次检测。</string>
+    <string name="msg_detection_load_failed">无法加载此检测记录。</string>
+    <string name="msg_no_photo_saved">此检测记录未保存照片。</string>
+    <string name="title_spoilage_results">变质检测结果</string>
+    <string name="desc_open_history_menu">打开历史菜单</string>
+    <string name="desc_delete">删除</string>
 
     <string name="title_detection_results">检测结果</string>
     <string name="label_produced_gases">产生的气体:</string>
-    <string name="label_probability">变质概率: %1$.1f%%</string>
+    <string name="label_probability">食物识别置信度: %1$.1f%%</string>
     <string name="label_live_camera">实时摄像头</string>
+    <string name="msg_waiting_for_camera">正在等待冰箱摄像头…</string>
 
-    <string name="status_connected">已连接</string>
-    <string name="status_connecting">正在连接...</string>
-    <string name="status_scanning">正在扫描...</string>
-    <string name="status_offline">传感器离线</string>
-    <string name="btn_connect">连接</string>
-    <string name="btn_disconnect">断开连接</string>
 
-    <string name="title_select_sensor">选择传感器</string>
-    <string name="label_unknown">未知</string>
 
     <string name="msg_detection_failed">检测失败。请检查服务器连接。</string>
 
@@ -78,16 +73,13 @@
     <string name="desc_background_monitoring">关闭应用后继续检查变质情况。</string>
     <string name="title_server_config">服务器配置</string>
     <string name="label_algorithm_server">算法服务器 URL</string>
+    <string name="label_automatic_detection_url">自动检测 URL</string>
     <string name="label_fridge_camera">冰箱摄像头照片 URL</string>
     <string name="label_data_server_url">数据服务器 URL</string>
     <string name="desc_ensure_urls">确保这些 URL 在当前网络下正确。</string>
 
     <string name="title_permissions_required">需要权限</string>
     <string name="desc_permissions_intro">为了提供完整功能，应用需要以下权限:</string>
-    <string name="title_perm_camera">摄像头</string>
-    <string name="desc_perm_camera">需要拍照以进行变质分析。</string>
-    <string name="title_perm_location">位置与蓝牙</string>
-    <string name="desc_perm_location">需要连接并读取传感器设备的数据。</string>
     <string name="title_perm_notifications">通知</string>
     <string name="desc_perm_notifications">用于在后台发送紧急变质警报。</string>
     <string name="btn_grant_permissions">授予权限</string>

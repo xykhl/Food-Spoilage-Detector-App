@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.FoodSpoilageDetector" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Must descend from Theme.AppCompat: MainActivity is an AppCompatActivity so that
+         per-app locale switching (AppCompatDelegate.setApplicationLocales) works. -->
+    <style name="Theme.FoodSpoilageDetector" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

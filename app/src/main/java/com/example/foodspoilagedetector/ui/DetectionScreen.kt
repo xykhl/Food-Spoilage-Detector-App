@@ -1,39 +1,14 @@
 package com.example.foodspoilagedetector.ui
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,42 +21,59 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.example.foodspoilagedetector.R
-import com.example.foodspoilagedetector.bluetooth.BluetoothService
 import com.example.foodspoilagedetector.model.DetectedFood
 import com.example.foodspoilagedetector.model.SensorDataParser
 import com.example.foodspoilagedetector.model.SensorReading
-import com.example.foodspoilagedetector.model.SensorRegistry
 import com.example.foodspoilagedetector.model.SpoilageResult
+import com.example.foodspoilagedetector.ui.components.LiveIndicator
 import kotlinx.coroutines.launch
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @Composable
 fun DetectionScreen(
-    bluetoothService: BluetoothService? = null,
     historyFiles: List<File> = emptyList(),
     detectionServerUrl: String = "http://localhost:5000/detect",
     fridgeImageUri: Uri? = null,
+    fridgeImageVersion: Int = 0,
     liveSensorReading: SensorReading? = null,
+    automaticSpoilageResult: SpoilageResult? = null,
+    isLive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    
-    var spoilageResult by remember { mutableStateOf<SpoilageResult?>(null) }
+
+    var manualSpoilageResult by remember { mutableStateOf<SpoilageResult?>(null) }
     var isDetecting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Arrival timestamps so we can show whichever result is newer. A manual tap stamps
+    // manualResultTime; each new automatic (SSE) result stamps automaticResultTime.
+    var manualResultTime by remember { mutableLongStateOf(0L) }
+    var automaticResultTime by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(automaticSpoilageResult) {
+        if (automaticSpoilageResult != null) automaticResultTime = System.currentTimeMillis()
+    }
+
+    // Show whichever result arrived most recently; ties fall to the manual result.
+    val showAutomatic = automaticSpoilageResult != null &&
+        (manualSpoilageResult == null || automaticResultTime > manualResultTime)
+    val activeResult = if (showAutomatic) automaticSpoilageResult else manualSpoilageResult
+    // Prefer the server's own label ("scheduled" = automatic, "manual" = manual);
+    // fall back to which channel it arrived on if the trigger is missing/unknown.
+    val isAutomaticResult = when (activeResult?.trigger?.lowercase()) {
+        "scheduled", "automatic" -> true
+        "manual" -> false
+        else -> showAutomatic
+    }
 
     // Sensor states
     var ethanol by remember { mutableStateOf("0.0") }
@@ -95,23 +87,6 @@ fun DetectionScreen(
 
     // Store previous values for trend calculation
     var previousValues by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-
-    // Bluetooth Integration
-    val connectionStatus by bluetoothService?.connectionStatus?.collectAsState() ?: remember { mutableStateOf(BluetoothService.ConnectionStatus.DISCONNECTED) }
-    val latestReading by bluetoothService?.latestReading?.collectAsState() ?: remember { mutableStateOf(null) }
-    val foundDevices by bluetoothService?.foundDevices?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
-    
-    var showDeviceDialog by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.entries.all { it.value }
-        if (granted) {
-            bluetoothService?.startScanning()
-            showDeviceDialog = true
-        }
-    }
 
     fun updateSensorStatesFromReading(reading: SensorReading) {
         previousValues = mapOf(
@@ -130,97 +105,60 @@ fun DetectionScreen(
         reading.values["DHT1_H"]?.let { humidity = it.toString() }
     }
 
-    LaunchedEffect(connectionStatus, historyFiles) {
-        if (connectionStatus != BluetoothService.ConnectionStatus.CONNECTED) {
-            val latestFile = historyFiles.firstOrNull()
-            if (latestFile != null) {
-                val readings = loadFileDataSyncInDetection(latestFile)
-                readings.lastOrNull()?.let { updateSensorStatesFromReading(it) }
+    // Until the data server sends something, fall back to the last recorded session.
+    LaunchedEffect(historyFiles, liveSensorReading) {
+        if (liveSensorReading == null) {
+            historyFiles.firstOrNull()?.let { file ->
+                SensorDataParser.loadSensorHistoryFromFile(file).lastOrNull()
+                    ?.let { updateSensorStatesFromReading(it) }
             }
         }
-    }
-
-    LaunchedEffect(latestReading) {
-        latestReading?.let { updateSensorStatesFromReading(it) }
     }
 
     LaunchedEffect(liveSensorReading) {
         liveSensorReading?.let { updateSensorStatesFromReading(it) }
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) { imageUri = uri; spoilageResult = null }
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) { imageUri = tempPhotoUri; spoilageResult = null }
-    }
-
-    // Auto-select fridge camera image if available and no user photo selected
-    val displayImageUri = imageUri ?: fridgeImageUri
-
     Column(
         modifier = modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Bluetooth Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) 
-                    MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = when (connectionStatus) {
-                            BluetoothService.ConnectionStatus.CONNECTED -> stringResource(R.string.status_connected)
-                            BluetoothService.ConnectionStatus.CONNECTING -> stringResource(R.string.status_connecting)
-                            BluetoothService.ConnectionStatus.SCANNING -> stringResource(R.string.status_scanning)
-                            else -> stringResource(R.string.status_offline)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Button(onClick = {
-                    if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) bluetoothService?.disconnect()
-                    else permissionLauncher.launch(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
-                }) {
-                    Text(if (connectionStatus == BluetoothService.ConnectionStatus.CONNECTED) stringResource(R.string.btn_disconnect) else stringResource(R.string.btn_connect))
-                }
-            }
-        }
-
-        // Image Card
+        // Fridge camera feed
         Card(modifier = Modifier.fillMaxWidth().height(250.dp), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (displayImageUri != null) {
-                    AsyncImage(model = displayImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    if (imageUri == null && fridgeImageUri != null) {
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
-                        ) {
-                            Text(stringResource(R.string.label_live_camera), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
-                        }
+                if (fridgeImageUri != null) {
+                    // The frame lives at a fixed path (…/live/latest.jpg) overwritten each
+                    // poll, so a plain Uri would be served from Coil's cache and never
+                    // refresh. Keying the request on the version forces a fresh decode.
+                    val liveModel = remember(fridgeImageUri, fridgeImageVersion) {
+                        ImageRequest.Builder(context)
+                            .data(fridgeImageUri)
+                            .memoryCacheKey("fridge_$fridgeImageVersion")
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .build()
+                    }
+                    AsyncImage(model = liveModel, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    if (isLive) {
+                        LiveIndicator(modifier = Modifier.align(Alignment.TopStart).padding(8.dp))
+                    }
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                    ) {
+                        Text(stringResource(R.string.label_live_camera), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
                     }
                 } else {
-                    Icon(painterResource(id = R.drawable.ic_launcher_foreground), null, Modifier.size(80.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(painterResource(id = R.drawable.ic_launcher_foreground), null, Modifier.size(80.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        Text(
+                            stringResource(R.string.msg_waiting_for_camera),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
-        }
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { val uri = createImageUriInDetection(context); tempPhotoUri = uri; cameraLauncher.launch(uri) }, Modifier.weight(1f)) {
-                Icon(Icons.Default.AddAPhoto, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_take_photo))
-            }
-            OutlinedButton(onClick = { photoPickerLauncher.launch("image/*") }, Modifier.weight(1f)) {
-                Icon(Icons.Default.PhotoLibrary, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.btn_gallery))
             }
         }
 
@@ -242,13 +180,19 @@ fun DetectionScreen(
                         "C2H5OH" to ethanol, "C2H4" to ethylene, "VOC" to voc, "H2S" to hydrogenSulfide,
                         "NH3" to ammonia, "CH3SH" to methylMercaptan, "DHT1_T" to temperature, "DHT1_H" to humidity
                     )
-                    val result = SensorDataParser.detectSpoilage(context, detectionServerUrl, currentData, displayImageUri)
-                    if (result.isSuccess) spoilageResult = result.getOrNull()
-                    else errorMessage = context.getString(R.string.msg_detection_failed)
+                    val result = SensorDataParser.detectSpoilage(context, detectionServerUrl, currentData, fridgeImageUri)
+                    if (result.isSuccess) {
+                        val spoilage = result.getOrNull()
+                        manualSpoilageResult = spoilage
+                        manualResultTime = System.currentTimeMillis()
+                        if (spoilage != null) {
+                            SensorDataParser.saveDetectionHistory(context, currentData, fridgeImageUri, spoilage)
+                        }
+                    } else errorMessage = context.getString(R.string.msg_detection_failed)
                     isDetecting = false
                 }
             },
-            enabled = !isDetecting && displayImageUri != null,
+            enabled = !isDetecting && fridgeImageUri != null,
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
         ) {
             if (isDetecting) CircularProgressIndicator(Modifier.size(24.dp), Color.White)
@@ -257,10 +201,36 @@ fun DetectionScreen(
 
         if (errorMessage != null) Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
 
-        // Multi-Food Result Interface
-        spoilageResult?.let { result ->
-            Text(stringResource(R.string.title_detection_results), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-            
+        // Result Interface
+        activeResult?.let { result ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.Start)) {
+                Text(stringResource(R.string.title_detection_results), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (isAutomaticResult) {
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = "LATEST AUTOMATIC CHECK",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+
+            if (result.generatedAt != null) {
+                Text(
+                    text = "Generated at: ${result.generatedAt}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Start).padding(bottom = 4.dp)
+                )
+            }
+
             // Top Status Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -288,19 +258,7 @@ fun DetectionScreen(
 
             if (result.detectedFoods.isNotEmpty()) {
                 result.detectedFoods.forEach { food ->
-                    DetectedFoodCard(food = food, originalImageUri = displayImageUri, context = context)
-                }
-            }
-        }
-    }
-
-    if (showDeviceDialog) {
-        Dialog(onDismissRequest = { showDeviceDialog = false }) {
-            Card(Modifier.fillMaxWidth().height(400.dp).padding(16.dp)) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.title_select_sensor), style = MaterialTheme.typography.titleLarge)
-                    if (foundDevices.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-                    else LazyColumn { items(foundDevices) { device -> ListItem(headlineContent = { @SuppressLint("MissingPermission") Text(device.name ?: stringResource(R.string.label_unknown)) }, modifier = Modifier.clickable { bluetoothService?.connect(device); showDeviceDialog = false }) } }
+                    DetectedFoodCard(food = food, originalImageUri = fridgeImageUri, context = context)
                 }
             }
         }
@@ -326,14 +284,14 @@ fun DetectedFoodCard(food: DetectedFood, originalImageUri: Uri?, context: Contex
 
     val statusColor = when (food.spoilageLevel.lowercase()) {
         "fresh" -> Color(0xFF2E7D32) // Green
-        "unsure" -> Color(0xFFEF6C00) // Orange
+        "unsure", "spoiling" -> Color(0xFFEF6C00) // Orange
         "spoiled" -> Color.Red
         else -> MaterialTheme.colorScheme.onSurface
     }
-    
+
     val containerColor = when (food.spoilageLevel.lowercase()) {
         "fresh" -> Color(0xFFF1F8E9)
-        "unsure" -> Color(0xFFFFF3E0)
+        "unsure", "spoiling" -> Color(0xFFFFF3E0)
         "spoiled" -> Color(0xFFFFEBEE)
         else -> MaterialTheme.colorScheme.surface
     }
@@ -344,16 +302,26 @@ fun DetectedFoodCard(food: DetectedFood, originalImageUri: Uri?, context: Contex
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Card(Modifier.size(100.dp), shape = MaterialTheme.shapes.small) {
+            val aspectRatio = if (food.boundingBox.size >= 4 && food.boundingBox[3] > 0) {
+                food.boundingBox[2].toFloat() / food.boundingBox[3].toFloat()
+            } else 1f
+
+            Card(
+                Modifier
+                    .height(100.dp)
+                    .aspectRatio(aspectRatio)
+                    .widthIn(max = 150.dp),
+                shape = MaterialTheme.shapes.small
+            ) {
                 if (croppedBitmap != null) {
-                    Image(bitmap = croppedBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    Image(bitmap = croppedBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 } else {
                     Box(Modifier.fillMaxSize(), Alignment.Center) { Icon(Icons.Default.PhotoLibrary, null, tint = Color.Gray.copy(alpha = 0.5f)) }
                 }
             }
-            
+
             Spacer(Modifier.width(16.dp))
-            
+
             Column(Modifier.weight(1f)) {
                 Text(food.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
@@ -366,7 +334,15 @@ fun DetectedFoodCard(food: DetectedFood, originalImageUri: Uri?, context: Contex
                     text = stringResource(R.string.label_probability, food.probability * 100),
                     style = MaterialTheme.typography.bodyMedium
                 )
-                
+
+                if (food.spoilageScore != null) {
+                    Text(
+                        text = "Spoilage Score: ${String.format(Locale.getDefault(), "%.4f", food.spoilageScore)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor
+                    )
+                }
+
                 if (food.producedGases.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(stringResource(R.string.label_produced_gases), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
@@ -399,20 +375,6 @@ fun DetectedFoodCard(food: DetectedFood, originalImageUri: Uri?, context: Contex
     }
 }
 
-fun loadFileDataSyncInDetection(file: File): List<SensorReading> {
-    return try {
-        val content = file.readText()
-        SensorDataParser.parseDatFile(content)
-    } catch (e: Exception) { emptyList() }
-}
-
-fun createImageUriInDetection(context: Context): Uri {
-    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-    val file = File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
 @Composable
 fun SensorInputGridInDetection(
     ethanol: String, ethylene: String, voc: String, hydrogenSulfide: String,
@@ -421,20 +383,20 @@ fun SensorInputGridInDetection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = stringResource(R.string.label_ethanol), value = ethanol, previousValue = previousValues["Ethanol"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = stringResource(R.string.label_ethylene), value = ethylene, previousValue = previousValues["Ethylene"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ethanol), value = ethanol, previousValue = previousValues["C2H5OH"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ethylene), value = ethylene, previousValue = previousValues["C2H4"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SensorTextFieldInDetection(label = stringResource(R.string.label_voc), value = voc, previousValue = previousValues["VOC"], modifier = Modifier.weight(1f))
             SensorTextFieldInDetection(label = stringResource(R.string.label_h2s), value = hydrogenSulfide, previousValue = previousValues["H2S"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = stringResource(R.string.label_ammonia), value = ammonia, previousValue = previousValues["Ammonia (NH3)"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = stringResource(R.string.label_ch3sh), value = methylMercaptan, previousValue = previousValues["Methanethiol (CH3SH)"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ammonia), value = ammonia, previousValue = previousValues["NH3"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_ch3sh), value = methylMercaptan, previousValue = previousValues["CH3SH"], modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SensorTextFieldInDetection(label = stringResource(R.string.label_temp), value = temperature, previousValue = previousValues["DHT11 #1 Temp"], modifier = Modifier.weight(1f))
-            SensorTextFieldInDetection(label = stringResource(R.string.label_humidity), value = humidity, previousValue = previousValues["DHT11 #1 Humi"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_temp), value = temperature, previousValue = previousValues["DHT1_T"], modifier = Modifier.weight(1f))
+            SensorTextFieldInDetection(label = stringResource(R.string.label_humidity), value = humidity, previousValue = previousValues["DHT1_H"], modifier = Modifier.weight(1f))
         }
     }
 }
@@ -461,7 +423,6 @@ fun SensorTextFieldInDetection(label: String, value: String, previousValue: Stri
 @Composable
 fun DetectionResultPreview() {
     MaterialTheme {
-        // Mocking the result you provided
         val mockResult = SpoilageResult(
             isSpoiled = true,
             message = "Detection Complete",
@@ -477,9 +438,11 @@ fun DetectionResultPreview() {
             )
         )
 
-        // This is a simplified version of the results list for the preview
         Column(Modifier.padding(16.dp)) {
-            // ... (Preview UI Code) ...
+            mockResult.detectedFoods.forEach { food ->
+                Text(food.label, fontWeight = FontWeight.Bold)
+                Text(food.message)
+            }
         }
     }
 }

@@ -16,6 +16,11 @@ class MonitoringService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var monitoringJob: Job? = null
 
+    // Edge-trigger the alert: only notify on the not-spoiled -> spoiled transition,
+    // so unchanged spoiled food doesn't re-buzz every poll. Reset once it goes clean
+    // again, allowing a genuinely new spoilage event to alert.
+    private var hasAlerted = false
+
     companion object {
         const val CHANNEL_ID = "SensorMonitoringChannel"
         const val ALERT_CHANNEL_ID = "SpoilageAlertChannel"
@@ -77,8 +82,16 @@ class MonitoringService : Service() {
 
                             if (result.isSuccess) {
                                 val spoilage = result.getOrNull()
-                                if (spoilage != null && spoilage.isSpoiled) {
-                                    sendAlertNotification(spoilage.message)
+                                if (spoilage != null) {
+                                    if (spoilage.isSpoiled) {
+                                        if (!hasAlerted) {
+                                            sendAlertNotification(spoilage.message)
+                                            hasAlerted = true
+                                        }
+                                    } else {
+                                        // Back to clean — re-arm for the next spoilage event.
+                                        hasAlerted = false
+                                    }
                                 }
                             }
                         }

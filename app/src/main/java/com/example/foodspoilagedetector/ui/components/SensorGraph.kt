@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foodspoilagedetector.model.SensorReading
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -138,10 +141,23 @@ fun SensorGraph(
     }
 }
 
+private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
+
+/**
+ * Readings from .jsonl sources (live feed and recorded sessions) carry epoch millis,
+ * while the legacy .DAT parser emits millis since midnight. Anything at or past a full
+ * day can only be the former.
+ */
 private fun formatTime(millis: Long): String {
+    if (millis >= MILLIS_PER_DAY) {
+        return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(millis))
+    }
     val totalSeconds = millis / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    return String.format(
+        Locale.US,
+        "%02d:%02d:%02d",
+        totalSeconds / 3600,
+        (totalSeconds % 3600) / 60,
+        totalSeconds % 60
+    )
 }
